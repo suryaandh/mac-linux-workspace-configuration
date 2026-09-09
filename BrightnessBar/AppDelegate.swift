@@ -10,7 +10,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         NSLog("DEBUG: statusItem created: \(statusItem!)")
 
         if let button = statusItem.button {
-            button.title = "☀"
+            let img = NSImage(systemSymbolName: "sun.max.fill", accessibilityDescription: "Brightness")
+            img?.isTemplate = true
+            button.image = img
+            button.title = ""
             button.action = #selector(togglePopover)
             button.target = self
         }
@@ -18,6 +21,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         popover = NSPopover()
         popover.contentSize = NSSize(width: 260, height: 160)
         popover.behavior = .transient
+        popover.appearance = NSAppearance(named: .darkAqua)
         popover.contentViewController = BrightnessViewController()
     }
 

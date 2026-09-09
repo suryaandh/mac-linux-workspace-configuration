@@ -72,6 +72,59 @@ private let cdGetBrightness: CDGetBrightnessFn? = {
     return unsafeBitCast(s, to: CDGetBrightnessFn.self)
 }()
 
+// MARK: - Software Dimmer Overlay
+
+/// Covers a screen with a black overlay to simulate brightness below hardware minimum.
+final class SoftwareDimmer {
+    private var window: NSWindow?
+    private var currentAlpha: CGFloat = 0
+
+    /// maxAlpha controls how dark the overlay can get (0.0–1.0). 0.85 leaves some image visible.
+    static let maxAlpha: CGFloat = 0.85
+
+    func setAlpha(_ alpha: CGFloat, for screen: NSScreen) {
+        let clamped = max(0, min(SoftwareDimmer.maxAlpha, alpha))
+        if clamped <= 0 {
+            window?.orderOut(nil)
+            window = nil
+            currentAlpha = 0
+            return
+        }
+        if window == nil {
+            let w = NSWindow(contentRect: screen.frame,
+                             styleMask: .borderless,
+                             backing: .buffered,
+                             defer: false,
+                             screen: screen)
+            w.backgroundColor = .black
+            w.isOpaque = false
+            w.ignoresMouseEvents = true
+            w.level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.maximumWindow)) + 1)
+            w.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
+            w.hasShadow = false
+            window = w
+        }
+        window?.setFrame(screen.frame, display: false)
+        window?.alphaValue = clamped
+        window?.orderFrontRegardless()
+        currentAlpha = clamped
+    }
+
+    func remove() {
+        window?.orderOut(nil)
+        window = nil
+        currentAlpha = 0
+    }
+}
+
+private var softwareDimmers: [CGDirectDisplayID: SoftwareDimmer] = [:]
+
+private func dimmerScreen(for displayID: CGDirectDisplayID) -> NSScreen? {
+    NSScreen.screens.first {
+        ($0.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID) == displayID
+    }
+}
+
 class BrightnessController {
 
     static func bbLogPublic(_ msg: String) { bbLog(msg) }
@@ -103,20 +156,42 @@ class BrightnessController {
     // MARK: - External Display
 
     static func getExternalBrightness(displayID: CGDirectDisplayID) -> Float {
-        // Return cached value if we've written one; otherwise default to 50%
         if let cached = externalBrightnessCache[displayID] { return cached }
         return 0.5
     }
 
+    /// Slider 0.0–0.5 → DDC=0 + software overlay (darker as value decreases)
+    /// Slider 0.5–1.0 → overlay off + DDC scales 0–100
     static func setExternalBrightness(displayID: CGDirectDisplayID, value: Float) {
         let clamped = max(0.0, min(1.0, value))
         bbLog("setExternalBrightness displayID=\(displayID) value=\(clamped)")
-        ddcSetBrightness(displayID: displayID, value: clamped)
+
+        let dimmer = softwareDimmers[displayID] ?? SoftwareDimmer()
+        softwareDimmers[displayID] = dimmer
+
+        if clamped >= 0.5 {
+            // Software overlay off; scale DDC linearly across full range
+            dimmer.remove()
+            ddcSetBrightness(displayID: displayID, value: (clamped - 0.5) * 2.0)
+        } else {
+            // DDC at minimum; increase overlay opacity as slider goes toward 0
+            ddcSetBrightness(displayID: displayID, value: 0)
+            let overlayAlpha = CGFloat((0.5 - clamped) * 2.0) * SoftwareDimmer.maxAlpha
+            if let screen = dimmerScreen(for: displayID) {
+                dimmer.setAlpha(overlayAlpha, for: screen)
+            }
+        }
+
         externalBrightnessCache[displayID] = clamped
     }
 
     static func updateExternalBrightnessCache(displayID: CGDirectDisplayID, value: Float) {
         externalBrightnessCache[displayID] = max(0.0, min(1.0, value))
+    }
+
+    static func removeExternalDimmer(for displayID: CGDirectDisplayID) {
+        softwareDimmers[displayID]?.remove()
+        softwareDimmers[displayID] = nil
     }
 
     // MARK: - DisplayServices helpers
@@ -258,6 +333,13 @@ class BrightnessController {
 
     // MARK: - Display Enumeration
 
+    static func internalDisplayID() -> CGDirectDisplayID? {
+        var displayIDs = [CGDirectDisplayID](repeating: 0, count: 16)
+        var count: UInt32 = 0
+        CGGetActiveDisplayList(16, &displayIDs, &count)
+        return (0..<Int(count)).map { displayIDs[$0] }.first { CGDisplayIsBuiltin($0) != 0 }
+    }
+
     static func externalDisplayIDs() -> [CGDirectDisplayID] {
         var displayIDs = [CGDirectDisplayID](repeating: 0, count: 16)
         var count: UInt32 = 0
@@ -268,8 +350,6 @@ class BrightnessController {
     }
 
     static func displayName(for displayID: CGDirectDisplayID) -> String {
-        if CGDisplayIsBuiltin(displayID) != 0 { return "Built-in Display" }
-
         // NSScreen.localizedName is the most reliable source on Apple Silicon
         for screen in NSScreen.screens {
             if let screenID = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID,
