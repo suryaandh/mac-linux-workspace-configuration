@@ -1,0 +1,7 @@
+.vscode/
+BrightnessBar/build/
+DynamicNotch/build/
+BrightnessBar/ddctest.c
+*.o
+*.log
+.DS_Store
