@@ -1,6 +1,8 @@
 # BrightnessBar
 
-Menu bar app to control internal and external monitor brightness on macOS. Apple Silicon only.
+A simple menu bar app to control monitor brightness on macOS. Apple Silicon only.
+
+![BrightnessBar](media.gif)
 
 ## Features
 
