@@ -5,7 +5,26 @@ struct DashboardView: View {
     private var store = ProductivityStore.shared
     private var timer = ActivityStore.shared
     private var media = MediaRemoteManager.shared
+    private var notifications = NotificationStore.shared
     var body: some View {
+        VStack(spacing: 0) {
+            summary.frame(height: max(50, 150 - NotchState.shared.collapsedSize.height - 43))
+            if !notifications.dashboardItems.isEmpty {
+                Divider().padding(.vertical, 10)
+                HStack {
+                    Text("RECENT NOTIFICATIONS").tracking(1).foregroundStyle(.secondary)
+                    Spacer()
+                    Button("View all (\(notifications.items.count))") { timer.selected = "notifications" }
+                }.font(.system(size: 9, weight: .semibold)).frame(height: 14)
+                VStack(spacing: 8) {
+                    ForEach(notifications.dashboardItems) { item in
+                        NotificationCard(item: item, compact: true).frame(height: 60)
+                    }
+                }.padding(.top, 8)
+            }
+        }
+    }
+    private var summary: some View {
         HStack(spacing: 0) {
             section("TODO", tab: "todo") {
                 Text("\(store.todos.filter { !$0.done }.count) remaining").font(.system(size: 14, weight: .semibold))

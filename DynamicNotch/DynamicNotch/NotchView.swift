@@ -148,7 +148,9 @@ struct NotchView: View {
                                 .font(.system(size: 10, weight: .semibold))
                                 .padding(.horizontal, 7).frame(height: 24)
                                 .background(activities.selected == tab ? .white.opacity(0.12) : .clear, in: Capsule())
-                            }.help(label(tab)).accessibilityLabel(label(tab))
+                            }
+                            .onHover { hovering in if hovering { activities.selected = tab } }
+                            .help(label(tab)).accessibilityLabel(label(tab))
                         }
                         Spacer(minLength: 0)
                         Button { SettingsWindowController.shared.show() } label: {
@@ -181,7 +183,7 @@ struct NotchView: View {
         }
         .overlay { if targeted && showFiles { shape.stroke(.blue, lineWidth: 1) } }
         .overlay(alignment: .bottom) {
-            if state.isExpanded, let item = notifications.preview {
+            if state.isExpanded, state.renderedPage != "dashboard", let item = notifications.preview {
                 HStack(spacing: 10) {
                     Group {
                         if let icon = item.appIcon {
@@ -307,10 +309,11 @@ struct NotchView: View {
                         .resizable().scaledToFill()
                         .frame(width: 34, height: 34)
                         .clipShape(RoundedRectangle(cornerRadius: 10))
-                } else {
-                    Image(systemName: "app.fill")
-                        .font(.system(size: 17)).foregroundStyle(.white.opacity(0.9))
-                        .frame(width: 34, height: 34).background(.white.opacity(0.12), in: RoundedRectangle(cornerRadius: 10))
+                } else if let logo = NSImage(named: "DynamicNotchLogo") {
+                    Image(nsImage: logo)
+                        .resizable().scaledToFill()
+                        .frame(width: 34, height: 34)
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
                 }
             }
             Button {
@@ -319,16 +322,16 @@ struct NotchView: View {
                 notifications.dismissPreview()
             } label: {
                 VStack(alignment: .leading, spacing: 3) {
+                    // Show only sender name and message body — no app label
                     Text(item.displayName).font(.system(size: 11, weight: .semibold)).lineLimit(1)
-                    Text(item.message).font(.system(size: 11)).foregroundStyle(.white.opacity(0.75)).lineLimit(2)
+                    Text(item.message).font(.system(size: 11)).foregroundStyle(.white.opacity(0.75)).lineLimit(1)
                 }.frame(maxWidth: .infinity, alignment: .leading)
             }
-            Button { notifications.dismiss(item.id) } label: {
-                Image(systemName: "xmark").font(.system(size: 10)).frame(width: 22, height: 28)
-            }.help("Dismiss preview")
         }
-        .padding(.horizontal, 18).padding(.top, state.collapsedSize.height + 5).padding(.bottom, 8)
+        .padding(.horizontal, 16).padding(.top, state.collapsedSize.height + 5).padding(.bottom, 8)
         .frame(width: NotchState.previewSize.width, height: NotchState.previewSize.height)
+        .background(.ultraThinMaterial.opacity(0.6), in: RoundedRectangle(cornerRadius: 14))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(.white.opacity(0.15), lineWidth: 0.5))
         .opacity(state.revealProgress)
     }
 
@@ -362,7 +365,7 @@ struct NotchView: View {
             HStack {
                 Text(notifications.captureStatus).font(.system(size: 9)).foregroundStyle(.secondary)
                 Spacer()
-                if !notifications.captureEnabled || !notifications.accessibilityGranted {
+                if !notifications.captureEnabled || !notifications.captureReady {
                     Button("Enable") { notifications.requestAccess() }
                 }
                 Button("Clear") { notifications.clear() }
@@ -373,20 +376,7 @@ struct NotchView: View {
                         Label("You're all caught up", systemImage: "bell.badge").foregroundStyle(.secondary).padding(20)
                     }
                     ForEach(notifications.items) { item in
-                        HStack(alignment: .top, spacing: 10) {
-                            NotificationAppIcon(item: item)
-                            VStack(alignment: .leading, spacing: 5) {
-                                HStack {
-                                    Text(item.displayName).fontWeight(.semibold).lineLimit(1)
-                                    Spacer()
-                                    Text(item.date, style: .time).font(.caption2).foregroundStyle(.secondary)
-                                    Button { notifications.dismiss(item.id) } label: { Image(systemName: "xmark") }.help("Remove notification")
-                                }
-                                Text(item.message).foregroundStyle(.secondary).textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
-                            }
-                        }.font(.system(size: 11)).padding(12)
-                            .background(.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 14))
-                            .overlay(RoundedRectangle(cornerRadius: 14).stroke(.white.opacity(0.08)))
+                        NotificationCard(item: item)
                     }
                 }
             }
@@ -410,8 +400,40 @@ private struct NotificationAppIcon: View {
     let item: NotchNotification
     var body: some View {
         Group {
-            if let icon = item.appIcon { Image(nsImage: icon).resizable().scaledToFit() }
-            else { Image(systemName: "app.fill").resizable().scaledToFit().padding(6).foregroundStyle(.secondary) }
+            if let icon = item.appIcon {
+                Image(nsImage: icon).resizable().scaledToFit()
+            } else if let logo = NSImage(named: "DynamicNotchLogo") {
+                Image(nsImage: logo).resizable().scaledToFit()
+            }
         }.frame(width: 32, height: 32).clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+}
+
+struct NotificationCard: View {
+    let item: NotchNotification
+    var compact = false
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            NotificationAppIcon(item: item)
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text(item.displayName).fontWeight(.semibold).lineLimit(1)
+                    Spacer()
+                    Text(item.date, style: .time).font(.system(size: 9)).foregroundStyle(.secondary)
+                    Button { NotificationStore.shared.dismiss(item.id) } label: {
+                        Image(systemName: "xmark").frame(width: 18, height: 18)
+                    }.help("Remove notification")
+                }
+                if compact {
+                    Text(item.message).foregroundStyle(.secondary).lineLimit(1)
+                } else {
+                    Text(item.message).foregroundStyle(.secondary).textSelection(.enabled)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }.font(.system(size: 11)).padding(compact ? 8 : 12)
+            .frame(maxWidth: .infinity, maxHeight: compact ? .infinity : nil, alignment: .leading)
+            .background(.ultraThinMaterial.opacity(0.5), in: RoundedRectangle(cornerRadius: 12))
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(.white.opacity(0.15), lineWidth: 0.5))
     }
 }

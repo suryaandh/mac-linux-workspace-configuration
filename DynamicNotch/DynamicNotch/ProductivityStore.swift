@@ -2,7 +2,7 @@ import Foundation
 import Observation
 
 struct TodoItem: Identifiable, Codable {
-    var id = UUID()
+    var id = UUID() 
     var title: String
     var done = false
     var linkedTodoID: UUID?

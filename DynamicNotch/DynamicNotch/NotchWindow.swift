@@ -22,7 +22,7 @@ final class NotchState {
     static let expandedSize = CGSize(width: 640, height: 330)
     static var pageSize: CGSize { size(for: ActivityStore.shared.selected) }
     static func size(for page: String) -> CGSize {
-        page == "dashboard" ? CGSize(width: 640, height: 150) : expandedSize
+        page == "dashboard" ? CGSize(width: 640, height: NotificationStore.dashboardHeight(notificationCount: NotificationStore.shared.items.count)) : expandedSize
     }
 }
 
@@ -80,6 +80,7 @@ final class NotchWindowController {
         withObservationTracking {
             _ = NotchState.shared.isExpanded
             _ = NotificationStore.shared.preview?.id
+            _ = NotificationStore.shared.dashboardItems.count
             _ = ActivityStore.shared.selected
         } onChange: { [weak self] in
             DispatchQueue.main.async {

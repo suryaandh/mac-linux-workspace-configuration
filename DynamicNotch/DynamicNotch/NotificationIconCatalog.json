@@ -1,0 +1,73 @@
+[
+  {
+    "name": "ChatGPT",
+    "bundleID": "com.openai.chat",
+    "aliases": [
+      "GPT",
+      "Chat GPT",
+      "chatgpt.com",
+      "chat.openai.com"
+    ],
+    "asset": "NotificationIcon0",
+    "source": "https://apps.apple.com/id/app/chatgpt/id6448311069?uo=4",
+    "artworkURL": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/1e/d2/2c/1ed22c36-78c3-54c9-7b35-b6837a28c0e3/AppIcon-0-0-1x_U007epad-0-0-0-1-0-P3-85-220.png/512x512bb.jpg"
+  },
+  {
+    "name": "Instagram",
+    "bundleID": "com.burbn.instagram",
+    "aliases": [
+      "instagram.com"
+    ],
+    "asset": "NotificationIcon1",
+    "source": "https://apps.apple.com/id/app/instagram/id389801252?uo=4",
+    "artworkURL": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/5a/18/99/5a189914-fa88-fab3-7ce2-506a624d2fbf/Prod-0-0-1x_U007epad-0-1-0-sRGB-85-220.png/512x512bb.jpg"
+  },
+  {
+    "name": "tiket.com",
+    "bundleID": "com.mobile.ios.Tiket",
+    "aliases": [
+      "Tiket",
+      "tiket.com"
+    ],
+    "asset": "NotificationIcon2",
+    "source": "https://apps.apple.com/id/app/tiket-com-flight-hotel-deals/id890405921?uo=4",
+    "artworkURL": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/0e/24/33/0e243395-b716-6a96-d5a8-14fcffa16f5b/AppIcon-0-0-1x_U007ephone-0-1-0-85-220.png/512x512bb.jpg"
+  },
+  {
+    "name": "Telegram",
+    "bundleID": "ph.telegra.Telegraph",
+    "aliases": [
+      "Telegram Web",
+      "web.telegram.org",
+      "telegram.org",
+      "ru.keepcoder.Telegram",
+      "org.telegram.desktop"
+    ],
+    "asset": "NotificationIcon3",
+    "source": "https://apps.apple.com/id/app/telegram-messenger/id686449807?uo=4",
+    "artworkURL": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/5a/2b/59/5a2b59f4-1458-d32d-7b33-00ba66d2d59e/Telegram-0-0-1x_U007epad-0-1-0-sRGB-85-220.png/512x512bb.jpg"
+  },
+  {
+    "name": "WhatsApp",
+    "bundleID": "net.whatsapp.WhatsApp",
+    "aliases": [
+      "WhatsApp Messenger",
+      "web.whatsapp.com",
+      "whatsapp.com",
+      "net.whatsapp.WhatsApp"
+    ],
+    "asset": "NotificationIcon4",
+    "source": "https://apps.apple.com/id/app/whatsapp-messenger/id310633997?uo=4",
+    "artworkURL": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/06/ee/d1/06eed185-996b-bd98-b5c4-36b365f93e08/AppIcon-0-0-1x_U007epad-0-0-0-1-0-0-sRGB-0-85-220.png/512x512bb.jpg"
+  },
+  {
+    "name": "Gmail",
+    "bundleID": "com.google.Gmail",
+    "aliases": [
+      "mail.google.com"
+    ],
+    "asset": "NotificationIcon5",
+    "source": "https://apps.apple.com/id/app/gmail-email-by-google/id422689480?uo=4",
+    "artworkURL": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/a0/f0/57/a0f057ec-e69b-27d7-3ada-ad34c50dbfb5/gmail_2026_ios-0-0-1x_U007epad-0-0-0-1-0-0-sRGB-0-0-85-220.png/512x512bb.jpg"
+  }
+]

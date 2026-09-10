@@ -61,16 +61,36 @@ struct SettingsPanelView: View {
                     }
                     GroupBox("Notifications") {
                         VStack(alignment: .leading, spacing: 9) {
-                            Toggle("Capture visible app notifications", isOn: $notifications.captureEnabled)
-                            Toggle("Dismiss native banner after capture", isOn: $notifications.dismissNativeBanners)
+                            Toggle("Capture app notifications", isOn: $notifications.captureEnabled)
+                            Toggle("Read directly from Notification Center", isOn: $notifications.directCaptureEnabled)
+                            if notifications.directCaptureEnabled {
+                                Text("For notch-only notifications: grant Full Disk Access, then silence banners below. Keep Allow Notifications and Show in Notification Center enabled.").font(.caption)
+                                HStack {
+                                    Button("Full Disk Access…") { notifications.openFullDiskAccess() }
+                                    Button("Native notification settings…") { notifications.openNotificationSettings() }
+                                }
+                                HStack {
+                                    Button("Silence native banners") { notifications.silenceNativeBanners() }
+                                    if notifications.bannersSilenced {
+                                        Button("Restore original styles") { notifications.restoreNativeBanners() }
+                                    }
+                                }
+                                Text("Silencing sets every app's alert style to None so macOS never draws banners — notifications still arrive in the notch. Restore brings back the original styles.").font(.caption).foregroundStyle(.secondary)
+                                Text("The database format is private and may change with macOS updates. Capture starts with new arrivals; existing history is not imported. Delivery waits for macOS to save the notification.").font(.caption).foregroundStyle(.secondary)
+                            }
+                            if !notifications.directCaptureEnabled { Toggle("Dismiss native banner after capture", isOn: $notifications.dismissNativeBanners) }
                             Text(notifications.captureStatus).font(.callout)
                             Text(notifications.diagnostics).font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
                             HStack {
-                                Button("Allow Accessibility") { notifications.requestAccess() }
-                                Button("Open permission settings") { notifications.openPrivacy() }
+                                if notifications.directCaptureEnabled {
+                                    Button("Check access") { notifications.refreshPermission() }
+                                } else {
+                                    Button("Allow Accessibility") { notifications.requestAccess() }
+                                    Button("Open permission settings") { notifications.openPrivacy() }
+                                }
                                 Button("Test preview") { notifications.add(message: "This is a DynamicNotch preview test.") }
                             }
-                            Text("Keep macOS banners enabled. Hidden previews and Focus-suppressed notifications cannot be read. Native banners are dismissed only when macOS exposes a supported cancel action; a brief overlap may remain.").font(.caption).foregroundStyle(.secondary)
+                            if !notifications.directCaptureEnabled { Text("Accessibility mode requires visible banners and may briefly overlap native notifications. Direct mode is required for no-banner delivery.").font(.caption).foregroundStyle(.secondary) }
                         }.padding(8).frame(maxWidth: .infinity, alignment: .leading)
                     }
                     GroupBox("Clipboard & local data") {
