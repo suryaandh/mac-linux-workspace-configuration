@@ -45,7 +45,11 @@ final class NotchWindowController {
     }
 
     func show() {
-        guard window == nil, let screen = NSScreen.main else { return }
+        // Prefer the screen with a physical notch, fall back to built-in, then main
+        let screen = NSScreen.screens.first(where: { $0.safeAreaInsets.top > 0 })
+            ?? NSScreen.screens.first(where: { $0.localizedName.lowercased().contains("built-in") })
+            ?? NSScreen.main
+        guard window == nil, let screen else { return }
         let notch = notchRect(on: screen)
         NotchState.shared.collapsedSize = notch.size
         NotchState.shared.presentationSize = notch.size
@@ -124,7 +128,8 @@ final class NotchWindowController {
             return
         }
         let started = ProcessInfo.processInfo.systemUptime
-        let duration = pageOnlySwitch ? 0.32 : 0.5
+        let duration = pageOnlySwitch ? 0.38 : 0.42
+        var revealStarted: Double?
         let timer = Timer(timeInterval: 1.0 / 60, repeats: true) { [weak self] timer in
             let elapsed = ProcessInfo.processInfo.systemUptime - started
             let t = min(1, elapsed / duration)
@@ -133,15 +138,18 @@ final class NotchWindowController {
             let animW = startSize.width + (endSize.width - startSize.width) * eased
             if pageChanged {
                 let fadeDuration = pageOnlySwitch ? 0.08 : 0.10
-                let fadeIn = pageOnlySwitch ? 0.12 : 0.30
+                let fadeIn = 0.12
                 if elapsed < fadeDuration {
                     state.contentOpacity = initialOpacity * (1 - elapsed / fadeDuration)
                 } else {
                     // For growing switches (e.g. dashboard→page), wait until height reaches 70% before revealing
                     let growing = pageOnlySwitch && endSize.height > startSize.height + 8
                     let heightReady = !growing || animH >= startSize.height + (endSize.height - startSize.height) * 0.7
-                    if heightReady { state.renderedPage = destinationPage }
-                    state.contentOpacity = heightReady ? min(1, (elapsed - fadeDuration) / fadeIn) : 0
+                    if heightReady {
+                        if revealStarted == nil { revealStarted = elapsed; state.renderedPage = destinationPage }
+                        let fraction = min(1, (elapsed - (revealStarted ?? elapsed)) / fadeIn)
+                        state.contentOpacity = fraction * fraction * (3 - 2 * fraction)
+                    } else { state.contentOpacity = 0 }
                 }
             }
             if !pageOnlySwitch {
@@ -154,7 +162,11 @@ final class NotchWindowController {
                 let w = NotchState.expandedSize.width + 32
                 win.setFrame(NSRect(x: notch.midX - w / 2, y: screen.frame.maxY - animH, width: w, height: animH), display: false)
             }
-            if t >= 1 { timer.invalidate(); self?.animationTimer = nil; self?.resize() }
+            if t >= 1 {
+                state.renderedPage = destinationPage
+                state.contentOpacity = 1
+                timer.invalidate(); self?.animationTimer = nil; self?.resize()
+            }
         }
         animationTimer = timer
         RunLoop.main.add(timer, forMode: .common)

@@ -129,9 +129,9 @@ struct NotchView: View {
             .opacity(state.hasPhysicalNotch ? state.revealProgress : 1)
             shape.stroke(.white.opacity(0.18 * state.revealProgress), lineWidth: 0.7)
             if state.revealProgress > 0 {
-                if !state.isExpanded, let item = notifications.preview ?? notifications.lastPreview {
+                if !state.isExpanded, let item = notifications.preview {
                     notificationPreview(item)
-                } else {
+                } else if state.isExpanded {
                 VStack(spacing: 6) {
                     HStack(spacing: 4) {
                         ForEach(tabs, id: \.self) { tab in
@@ -197,14 +197,14 @@ struct NotchView: View {
                     }
                     Button {
                         activities.selected = "notifications"
-                        notifications.preview = nil
+                        notifications.dismissPreview()
                     } label: {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(item.source).font(.system(size: 10, weight: .semibold))
+                            Text(item.displayName).font(.system(size: 10, weight: .semibold))
                             Text(item.message).font(.system(size: 11)).lineLimit(2)
                         }.frame(maxWidth: .infinity, alignment: .leading)
                     }
-                    Button { notifications.preview = nil } label: { Image(systemName: "xmark") }.help("Dismiss preview")
+                    Button { notifications.dismiss(item.id) } label: { Image(systemName: "xmark") }.help("Dismiss preview")
                 }
                 .padding(10).background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
                 .padding(.horizontal, 14).padding(.bottom, 10)
@@ -316,14 +316,14 @@ struct NotchView: View {
             Button {
                 activities.selected = "notifications"
                 state.isExpanded = true
-                notifications.preview = nil
+                notifications.dismissPreview()
             } label: {
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(item.source).font(.system(size: 11, weight: .semibold)).lineLimit(1)
+                    Text(item.displayName).font(.system(size: 11, weight: .semibold)).lineLimit(1)
                     Text(item.message).font(.system(size: 11)).foregroundStyle(.white.opacity(0.75)).lineLimit(2)
                 }.frame(maxWidth: .infinity, alignment: .leading)
             }
-            Button { notifications.preview = nil } label: {
+            Button { notifications.dismiss(item.id) } label: {
                 Image(systemName: "xmark").font(.system(size: 10)).frame(width: 22, height: 28)
             }.help("Dismiss preview")
         }
@@ -358,70 +358,35 @@ struct NotchView: View {
     }
 
     private var notificationContent: some View {
-        // Group items by source, preserving insertion order
-        let grouped: [(source: String, items: [NotchNotification])] = {
-            var order: [String] = []
-            var dict: [String: [NotchNotification]] = [:]
-            for item in notifications.items {
-                if dict[item.source] == nil { order.append(item.source) }
-                dict[item.source, default: []].append(item)
-            }
-            return order.map { (source: $0, items: dict[$0]!) }
-        }()
-
-        return VStack(spacing: 4) {
+        VStack(spacing: 8) {
             HStack {
-                Text(notifications.captureStatus)
-                    .font(.system(size: 9)).foregroundStyle(.secondary)
+                Text(notifications.captureStatus).font(.system(size: 9)).foregroundStyle(.secondary)
                 Spacer()
                 if !notifications.captureEnabled || !notifications.accessibilityGranted {
-                    Button("Enable") { notifications.requestAccess() }.font(.system(size: 10, weight: .semibold))
+                    Button("Enable") { notifications.requestAccess() }
                 }
-                Button("Clear") { notifications.clear() }.font(.system(size: 9))
-            }
+                Button("Clear") { notifications.clear() }
+            }.font(.system(size: 10))
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: 8) {
+                LazyVStack(spacing: 8) {
                     if notifications.items.isEmpty {
-                        Text("No notifications yet").font(.system(size: 11)).foregroundStyle(.secondary)
+                        Label("You're all caught up", systemImage: "bell.badge").foregroundStyle(.secondary).padding(20)
                     }
-                    ForEach(grouped, id: \.source) { group in
-                        VStack(alignment: .leading, spacing: 0) {
-                            // Source header
-                            HStack(spacing: 5) {
-                                Image(systemName: "bell.fill").foregroundStyle(.orange).font(.system(size: 9))
-                                Text(group.source).font(.system(size: 9, weight: .semibold)).foregroundStyle(.white.opacity(0.6))
-                                Spacer()
-                                Text("\(group.items.count)").font(.system(size: 8)).foregroundStyle(.white.opacity(0.35))
-                            }
-                            .padding(.horizontal, 8).padding(.vertical, 5)
-
-                            Divider().background(.white.opacity(0.1))
-
-                            // Items inside the card
-                            VStack(alignment: .leading, spacing: 0) {
-                                ForEach(Array(group.items.enumerated()), id: \.element.id) { index, item in
-                                    HStack(alignment: .top, spacing: 8) {
-                                        VStack(alignment: .leading, spacing: 2) {
-                                            HStack {
-                                                Text(item.date, style: .time).foregroundStyle(.secondary)
-                                                Spacer()
-                                                Button { notifications.dismiss(item.id) } label: {
-                                                    Image(systemName: "xmark").font(.system(size: 8))
-                                                }.help("Remove")
-                                            }
-                                            Text(item.message).textSelection(.enabled)
-                                        }
-                                    }
-                                    .font(.system(size: 10))
-                                    .padding(.horizontal, 8).padding(.vertical, 5)
-
-                                    if index < group.items.count - 1 {
-                                        Divider().background(.white.opacity(0.06)).padding(.horizontal, 8)
-                                    }
+                    ForEach(notifications.items) { item in
+                        HStack(alignment: .top, spacing: 10) {
+                            NotificationAppIcon(item: item)
+                            VStack(alignment: .leading, spacing: 5) {
+                                HStack {
+                                    Text(item.displayName).fontWeight(.semibold).lineLimit(1)
+                                    Spacer()
+                                    Text(item.date, style: .time).font(.caption2).foregroundStyle(.secondary)
+                                    Button { notifications.dismiss(item.id) } label: { Image(systemName: "xmark") }.help("Remove notification")
                                 }
+                                Text(item.message).foregroundStyle(.secondary).textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
                             }
-                        }
-                        .background(.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 8))
+                        }.font(.system(size: 11)).padding(12)
+                            .background(.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 14))
+                            .overlay(RoundedRectangle(cornerRadius: 14).stroke(.white.opacity(0.08)))
                     }
                 }
             }
@@ -438,5 +403,15 @@ private struct NotchButtonStyle: ButtonStyle {
             .opacity(configuration.isPressed ? 0.6 : 1)
             .scaleEffect(configuration.isPressed ? 0.94 : 1)
             .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
+    }
+}
+
+private struct NotificationAppIcon: View {
+    let item: NotchNotification
+    var body: some View {
+        Group {
+            if let icon = item.appIcon { Image(nsImage: icon).resizable().scaledToFit() }
+            else { Image(systemName: "app.fill").resizable().scaledToFit().padding(6).foregroundStyle(.secondary) }
+        }.frame(width: 32, height: 32).clipShape(RoundedRectangle(cornerRadius: 8))
     }
 }

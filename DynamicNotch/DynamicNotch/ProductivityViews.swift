@@ -23,7 +23,7 @@ struct DashboardView: View {
             }.padding(.horizontal, 12).frame(maxWidth: .infinity, alignment: .leading)
             Divider().padding(.vertical, 4)
             section("POMODORO", tab: "timer") {
-                Text(timer.timerActive ? timer.timeLabel : "25:00").font(.system(size: 18, weight: .medium, design: .rounded)).monospacedDigit()
+                Text(timer.timerActive ? timer.timeLabel : String(format: "%02d:00", UserDefaults.standard.object(forKey: "focusMinutes") as? Int ?? 25)).font(.system(size: 18, weight: .medium, design: .rounded)).monospacedDigit()
                 Text(timer.timerActive ? timer.focusTitle : "Ready to focus").lineLimit(1).foregroundStyle(.secondary)
             }
             Divider().padding(.vertical, 4)
@@ -58,15 +58,8 @@ struct TodoView: View {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 8) {
                     if store.todos.isEmpty { Text("A clear list. Add your first task above.").foregroundStyle(.secondary) }
-                    ForEach($store.todos) { $todo in
-                        HStack {
-                            Toggle(isOn: $todo.done) { TextField("Task", text: $todo.title).strikethrough(todo.done) }.toggleStyle(.checkbox)
-                            Button {
-                                store.focus(on: todo.id)
-                                ActivityStore.shared.selected = "timer"
-                            } label: { Image(systemName: "timer") }.disabled(todo.done).help("Focus on this task in Pomodoro")
-                            Button { store.todos.removeAll { $0.id == todo.id } } label: { Image(systemName: "trash") }.help("Delete task")
-                        }.padding(8).background(.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 8))
+                    ForEach(store.todos.filter { $0.parentID == nil }) { todo in
+                        TodoCard(todo: todo)
                     }
                 }
             }
@@ -74,6 +67,55 @@ struct TodoView: View {
         }.font(.system(size: 12))
     }
     private func add() { store.addTodo(draft); draft = "" }
+}
+
+private struct TodoCard: View {
+    let todo: TodoItem
+    private var store = ProductivityStore.shared
+    @State private var childDraft = ""
+    init(todo: TodoItem) { self.todo = todo }
+    private var children: [TodoItem] { store.todos.filter { $0.parentID == todo.id } }
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            row(todo)
+            if !children.isEmpty {
+                HStack {
+                    Text("SUBTASKS").tracking(1)
+                    Spacer()
+                    Text("\(children.filter(\.done).count)/\(children.count)")
+                }.font(.system(size: 9, weight: .semibold)).foregroundStyle(.secondary)
+                ForEach(children) { child in row(child).padding(.leading, 12) }
+                ProgressView(value: Double(children.filter(\.done).count), total: Double(children.count)).tint(.mint)
+            }
+            if !todo.done {
+                HStack {
+                    Image(systemName: "arrow.turn.down.right").foregroundStyle(.secondary)
+                    TextField("Add a subtask…", text: $childDraft).onSubmit(addChild)
+                    Button(action: addChild) { Image(systemName: "plus.circle.fill").foregroundStyle(.mint) }
+                        .disabled(childDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty).help("Add subtask")
+                }.font(.system(size: 11))
+            }
+        }.padding(12).background(.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 14))
+            .overlay(RoundedRectangle(cornerRadius: 14).stroke(.white.opacity(0.08)))
+    }
+    private func row(_ item: TodoItem) -> some View {
+        HStack(spacing: 9) {
+            Button { store.setDone(item.id, !item.done) } label: {
+                Image(systemName: item.done ? "checkmark.circle.fill" : "circle").foregroundStyle(item.done ? .mint : .gray)
+            }.help(item.done ? "Mark incomplete" : "Complete task")
+            TextField("Task", text: Binding(get: {
+                store.todos.first { $0.id == item.id }?.title ?? ""
+            }, set: { title in
+                if let index = store.todos.firstIndex(where: { $0.id == item.id }) { store.todos[index].title = title }
+            })).textFieldStyle(.plain).strikethrough(item.done).foregroundStyle(item.done ? .secondary : .primary)
+            Button { store.focus(on: item.id); ActivityStore.shared.selected = "timer" } label: {
+                Image(systemName: "timer").foregroundStyle(.mint)
+            }.disabled(item.done).help("Add to Pomodoro")
+            Button { store.removeTodo(item.id) } label: { Image(systemName: "trash").foregroundStyle(.secondary) }
+                .help(item.parentID == nil ? "Delete task and its subtasks" : "Delete subtask")
+        }
+    }
+    private func addChild() { store.addTodo(childDraft, parentID: todo.id); childDraft = "" }
 }
 
 struct NotesView: View {
@@ -123,7 +165,7 @@ struct PomodoroView: View {
     @Bindable private var store = ProductivityStore.shared
     private var timer = ActivityStore.shared
     @State private var draft = ""
-    @State private var minutes = 25
+    @AppStorage("focusMinutes") private var minutes = 25
     var body: some View {
         HStack(spacing: 20) {
             VStack(spacing: 12) {
@@ -140,11 +182,20 @@ struct PomodoroView: View {
                 if timer.timerActive {
                     HStack { Button(timer.running ? "Pause" : "Resume") { timer.toggleTimer() }; Button("Stop") { timer.stop() } }
                 } else {
-                    Picker("Minutes", selection: $minutes) { ForEach([5, 15, 25, 50], id: \.self) { Text("\($0)m").tag($0) } }.labelsHidden()
+                    HStack(spacing: 8) {
+                        ForEach([5, 15, 25, 50], id: \.self) { value in
+                            Button("\(value)") { minutes = value }.foregroundStyle(minutes == value ? .mint : .white)
+                        }
+                    }
+                    HStack {
+                        Text("Minutes")
+                        TextField("1–240", value: $minutes, format: .number).frame(width: 48)
+                        Stepper("Minutes", value: $minutes, in: 1...240).labelsHidden()
+                    }.font(.caption)
                     Button("Start focus") {
                         let selected = store.focusTasks.first { $0.id == store.selectedFocus }
-                        timer.start(minutes: minutes, task: selected?.title ?? "Focus", todoID: selected?.linkedTodoID)
-                    }.buttonStyle(.borderedProminent).tint(.mint)
+                        timer.start(minutes: minutes, task: selected.map { store.focusTitle(for: $0) } ?? "Focus", todoID: selected?.linkedTodoID)
+                    }.buttonStyle(.borderedProminent).tint(.mint).disabled(!(1...240).contains(minutes))
                 }
             }.frame(width: 185)
             Divider()
@@ -159,7 +210,7 @@ struct PomodoroView: View {
                         ForEach(store.focusTasks) { task in
                             HStack {
                                 Button { store.selectedFocus = task.id } label: {
-                                    Label(task.title, systemImage: task.linkedTodoID != nil ? "checklist" : (store.selectedFocus == task.id ? "record.circle.fill" : "circle"))
+                                    Label(store.focusTitle(for: task), systemImage: task.linkedTodoID != nil ? "checklist" : (store.selectedFocus == task.id ? "record.circle.fill" : "circle"))
                                         .foregroundStyle(store.selectedFocus == task.id ? .mint : .white)
                                 }
                                 Spacer()

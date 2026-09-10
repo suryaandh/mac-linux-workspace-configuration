@@ -8,9 +8,9 @@ The first page is **Dashboard**: four horizontal sections separated by dividers 
 
 - **Calendar:** month grid on the left, selected day's events on the right. Navigate months, select a day, jump to today or refresh. All-day and timed events are supported. EventKit updates refresh the list.
 - **Media:** larger cover art, title, artist, album, source app, progress and playback controls. Clicking the artwork opens the player.
-- **Todo:** add, edit, complete and delete tasks; saved locally.
+- **Todo:** cards with editable parent tasks and one level of subtasks. Add, edit, complete and delete either; deleting a parent removes its children, and completing a parent completes its children. Send either to Pomodoro; saved locally.
 - **Notes:** note list on the left and title/body editor on the right. Changes save automatically. The previous single Quick Note is migrated once; deleting it does not recreate it on restart.
-- **Pomodoro:** circular timer on the left; selectable focus-task queue and completed-session history on the right. Presets: 5, 15, 25 and 50 minutes. Pause/resume/stop supported. The session records its original task name when it finishes. Breaks are started manually. Timers survive sleep, not application termination.
+- **Pomodoro:** circular timer on the left; selectable focus-task queue and completed-session history on the right. Presets: 5, 15, 25 and 50 minutes, plus a saved custom duration of 1–240 minutes. Linked subtasks show “Parent › Subtask” in the queue and session history. Pause/resume/stop supported. The session records its original task name when it finishes. Breaks are started manually. Timers survive sleep, not application termination.
 - **Day Progress:** local calendar-day percentage and task/focus summary. Calculation accounts for daylight-saving days and refreshes every 30 seconds.
 - **Weather:** search a city, choose among matching locations, view temperature, feels-like temperature, humidity and wind, then refresh when needed. Conditions are model data from [Open-Meteo](https://open-meteo.com/), fetched on demand; no location permission or API key is used. A failure is shown explicitly. The selected city is session-only.
 
@@ -30,20 +30,22 @@ Sources: [Google Calendar setup](https://support.google.com/calendar/answer/9935
 
 Dashboard is 640 × 150 logical points; detail pages are 640 × 330 points so split editors and calendar grids have room. Notification previews remain 460 × 96 points. The glass appearance uses an AppKit behind-window visual effect. File-drop content is centered.
 
-Hover opens only within the physical camera cutout measured by NSScreen. The connected display measured 185 × 32 points at Retina 2× during earlier validation. Collapsed overlay is transparent on notched screens, preserving the real silhouette. Displays without a cutout get a 170 × 24 point virtual notch. A 16-point side gutter accommodates the top curves. Size and corner animation lasts 0.38 seconds; Reduce Motion skips it.
+Hover opens only within the physical camera cutout measured by NSScreen. The connected display measured 185 × 32 points at Retina 2× during earlier validation. Collapsed overlay is transparent on notched screens, preserving the real silhouette. Displays without a cutout get a 170 × 24 point virtual notch. A 16-point side gutter accommodates the top curves. Size and corner animation lasts 0.42 seconds, with 0.38-second page transitions and a gradual content fade; Reduce Motion skips it.
 
 ## Other tools
 
 - File drop: local files can be copied or sent through the system share sheet, including AirDrop when offered. No transfer begins automatically.
 - Clipboard: optional session-only history of up to 50 text copies. Click to copy again or clear. Concealed/transient/generated pasteboard types are skipped.
-- Notifications: up to 100 session-only entries, preview on arrival for six seconds, dismiss and clear. New arrivals replace the preview, and every entry remains in history. The bell tab shows capture status and an Enable button. Settings has a labeled preview test.
+- Notifications: up to 100 session-only entries, preview on arrival for four seconds, dismiss and clear. New arrivals replace the preview, and entries remain as separate cards with app icons. Closing a card removes that entry; opening its preview retains it in history. The bell tab shows capture status and an Enable button. Settings has a labeled preview test.
 - Settings: activity visibility, tint, opacity and corner radius. Right-click the panel or use the menu bar item to access/quit the app.
 
 ## Notification coverage
 
-Optional system capture reads visible Notification Center Accessibility text every 350 ms without overlapping scans. Enable capture and grant Accessibility to the running app. Keep macOS banners enabled. Identical visible snapshots within 30 seconds are deduplicated.
+Optional system capture uses Accessibility observers with a 150 ms polling fallback in common run-loop modes, without overlapping scans. Each traversal has a time/node budget. Enable capture and grant Accessibility to the running app. Keep macOS banners enabled. Identical visible messages are deduplicated for five minutes. Individual notification groups are preferred over whole-window snapshots where available.
 
-This does **not** replace macOS notification delivery or suppress native banners. Hidden previews, Focus-suppressed banners, unsupported Accessibility content and banners missed between scans cannot be guaranteed. Notification Center can expose a group as one snapshot. Chrome/WhatsApp capture still needs live verification after permission is granted. Messages/Mail snippets require a readable notification; direct mailbox access and sender avatars are not implemented. See [Apple notification API scope](https://developer.apple.com/documentation/usernotifications/unusernotificationcenter).
+“Dismiss native banner after capture” defaults on. It attempts the supported Accessibility Cancel action only for a window containing one matching, freshly captured notification; it does not click arbitrary controls or clear Notification Center. macOS must first expose the banner, so a brief overlap may remain. Unsupported cancel actions leave the native banner visible. You can disable this behavior in Settings. See [Apple's Cancel action](https://developer.apple.com/documentation/applicationservices/kaxcancelaction).
+
+Hidden previews, Focus-suppressed banners, unsupported Accessibility content and banners missed between scans cannot be guaranteed. App icons resolve from running apps or known installed Chrome, WhatsApp, Telegram, Safari and Messages bundles, with a generic fallback. Browser notifications retain their browser identity when macOS does not expose the originating web app. Capture latency, native dismissal, and Chrome/WhatsApp/Telegram behavior still require live verification on the running build with Accessibility enabled.
 
 ## Media dependency
 

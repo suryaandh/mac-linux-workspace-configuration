@@ -62,4 +62,12 @@ final class CalendarStore {
     func openAccounts() {
         openSettings("x-apple.systempreferences:com.apple.preferences.internetaccounts")
     }
+
+    func hasEvents(on date: Date) -> Bool {
+        guard authorized else { return false }
+        let start = Calendar.current.startOfDay(for: date)
+        guard let end = Calendar.current.date(byAdding: .day, value: 1, to: start) else { return false }
+        let predicate = store.predicateForEvents(withStart: start, end: end, calendars: nil)
+        return !store.events(matching: predicate).isEmpty
+    }
 }

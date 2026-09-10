@@ -32,6 +32,23 @@ import Foundation
         restored.todos[0].done = true
         precondition(!restored.focusTasks.contains { $0.linkedTodoID == todoID })
         precondition(restored.selectedFocus == nil)
+        restored.addTodo("Project")
+        let parentID = restored.todos.last!.id
+        restored.addTodo("Child", parentID: parentID)
+        let childID = restored.todos.last!.id
+        restored.focus(on: childID)
+        precondition(restored.focusTitle(for: restored.focusTasks.last!) == "Project › Child")
+        let reloaded = ProductivityStore(defaults: defaults)
+        precondition(reloaded.todos.last?.parentID == parentID)
+        restored.setDone(parentID, true)
+        precondition(restored.todos.first { $0.id == childID }!.done)
+        precondition(!restored.focusTasks.contains { $0.linkedTodoID == childID })
+        restored.setDone(childID, false)
+        precondition(!restored.todos.first { $0.id == parentID }!.done)
+        restored.focus(on: childID)
+        restored.removeTodo(parentID)
+        precondition(!restored.todos.contains { $0.id == childID || $0.id == parentID })
+        precondition(!restored.focusTasks.contains { $0.linkedTodoID == childID })
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: "America/New_York")!
         let start = calendar.date(from: DateComponents(year: 2026, month: 3, day: 8))!

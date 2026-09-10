@@ -11,12 +11,12 @@ struct CalendarPageView: View {
         return Array(repeating: nil, count: offset) + (0..<count).map { calendar.date(byAdding: .day, value: $0, to: month) }
     }
     var body: some View {
-        HStack(alignment: .top, spacing: 18) {
-            VStack(spacing: 9) {
+        HStack(alignment: .top, spacing: 12) {
+            VStack(spacing: 8) {
                 HStack {
                     Button { move(-1) } label: { Image(systemName: "chevron.left") }.help("Previous month")
                     Spacer()
-                    Text(month, format: .dateTime.month(.wide).year()).font(.system(size: 13, weight: .semibold))
+                    Text(month, format: .dateTime.month(.wide).year()).font(.system(size: 13, weight: .semibold)) 
                     Spacer()
                     Button { move(1) } label: { Image(systemName: "chevron.right") }.help("Next month")
                 }
@@ -27,20 +27,29 @@ struct CalendarPageView: View {
                     ForEach(days.indices, id: \.self) { index in
                         if let date = days[index] {
                             Button { store.selectedDate = date } label: {
-                                Text("\(calendar.component(.day, from: date))")
-                                    .frame(maxWidth: .infinity).frame(height: 22)
-                                    .background(calendar.isDate(date, inSameDayAs: store.selectedDate) ? .mint.opacity(0.35) : .clear, in: RoundedRectangle(cornerRadius: 6))
-                                    .overlay(RoundedRectangle(cornerRadius: 6).stroke(calendar.isDateInToday(date) ? .mint : .clear))
+                                VStack(spacing: 2) {
+                                    Text("\(calendar.component(.day, from: date))")
+                                        .frame(maxWidth: .infinity).frame(height: 21)
+                                        .background(calendar.isDate(date, inSameDayAs: store.selectedDate) ? Color.white.opacity(0.15) : .clear, in: RoundedRectangle(cornerRadius: 6))
+                                        .overlay(RoundedRectangle(cornerRadius: 6).stroke(calendar.isDateInToday(date) ? Color.white.opacity(0.4) : .clear))
+                                    Circle()
+                                        .fill(store.hasEvents(on: date) ? Color.white.opacity(0.5) : .clear)
+                                        .frame(width: 3, height: 3)
+                                }
                             }
-                        } else { Color.clear.frame(height: 22) }
+                        } else { Color.clear.frame(height: 21) }
                     }
                 }.font(.system(size: 11))
                 Button("Today") { store.selectedDate = Date(); month = calendar.dateInterval(of: .month, for: Date())!.start }
-            }.frame(width: 250)
-            Divider()
+            }.padding(12).frame(width: 264)
+                .background(LinearGradient(colors: [.white.opacity(0.07), .white.opacity(0.03)], startPoint: .topLeading, endPoint: .bottomTrailing), in: RoundedRectangle(cornerRadius: 16))
+                .overlay(RoundedRectangle(cornerRadius: 16).stroke(.white.opacity(0.08)))
             VStack(alignment: .leading, spacing: 9) {
                 HStack {
-                    Text(store.selectedDate, format: .dateTime.weekday().month().day()).font(.headline)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("YOUR SCHEDULE").font(.system(size: 8, weight: .semibold)).tracking(1.5).foregroundStyle(.secondary)
+                        Text(store.selectedDate, format: .dateTime.weekday().month().day()).font(.headline)
+                    }
                     Spacer()
                     Button { store.refresh() } label: { Image(systemName: "arrow.clockwise") }.help("Refresh events")
                 }
@@ -53,16 +62,56 @@ struct CalendarPageView: View {
                 } else {
                     ScrollView {
                         LazyVStack(alignment: .leading, spacing: 9) {
-                            if store.events.isEmpty { Text(store.status).foregroundStyle(.secondary) }
+                            if store.events.isEmpty {
+                                VStack(spacing: 8) {
+                                    Image(systemName: "calendar.badge.checkmark").font(.system(size: 26)).foregroundStyle(.secondary)
+                                    Text("A little breathing room").fontWeight(.medium)
+                                    Text(store.status).font(.caption).foregroundStyle(.secondary)
+                                }.frame(maxWidth: .infinity).padding(.vertical, 25)
+                            }
                             ForEach(Array(store.events.enumerated()), id: \.offset) { _, event in
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(event.title ?? "Untitled event").fontWeight(.semibold)
-                                    if event.isAllDay { Text("All day").foregroundStyle(.mint) }
-                                    else { HStack { Text(event.startDate, style: .time); Text("–"); Text(event.endDate, style: .time) }.foregroundStyle(.mint) }
-                                    Text(event.calendar.title).font(.caption).foregroundStyle(.secondary)
-                                    if let location = event.location, !location.isEmpty { Text(location).font(.caption).foregroundStyle(.secondary) }
-                                }.padding(8).frame(maxWidth: .infinity, alignment: .leading)
-                                    .background(.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 8))
+                                HStack(spacing: 0) {
+                                    RoundedRectangle(cornerRadius: 2)
+                                        .fill(Color(cgColor: event.calendar.cgColor))
+                                        .frame(width: 3)
+                                        .padding(.vertical, 10)
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        HStack(alignment: .firstTextBaseline) {
+                                            Text(event.title ?? "Untitled event")
+                                                .fontWeight(.semibold)
+                                                .lineLimit(1)
+                                            Spacer(minLength: 4)
+                                            if event.isAllDay {
+                                                Text("All day")
+                                                    .font(.caption)
+                                                    .foregroundStyle(.secondary)
+                                            } else {
+                                                Text(event.startDate, style: .time)
+                                                    .font(.caption)
+                                                    .foregroundStyle(.secondary)
+                                            }
+                                        }
+                                        HStack(spacing: 4) {
+                                            Text(event.calendar.title)
+                                                .font(.caption)
+                                                .foregroundStyle(.tertiary)
+                                            if let location = event.location, !location.isEmpty {
+                                                Text("·").foregroundStyle(.tertiary)
+                                                Text(location).font(.caption).foregroundStyle(.tertiary).lineLimit(1)
+                                            }
+                                        }
+                                        if !event.isAllDay {
+                                            Text("\(event.startDate, style: .time) – \(event.endDate, style: .time)")
+                                                .font(.caption2)
+                                                .foregroundStyle(.secondary)
+                                        }
+                                    }
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 8)
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 10))
+                                .overlay(RoundedRectangle(cornerRadius: 10).stroke(.white.opacity(0.08)))
                             }
                         }
                     }
@@ -104,7 +153,7 @@ struct WeatherPageView: View {
             if let weather = store.current {
                 HStack(spacing: 24) {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text(store.location).font(.headline).lineLimit(2)
+                        // Text(store.location).font(.headline).lineLimit(2)
                         Text("\(weather.temperature_2m, specifier: "%.0f")°C").font(.system(size: 32, weight: .light, design: .rounded))
                         Text(WeatherStore.condition(weather.weather_code)).foregroundStyle(.secondary)
                     }
@@ -141,7 +190,7 @@ struct WeatherPageView: View {
                                     Image(systemName: WeatherStore.symbol(hour.code, isDay: hour.isDay))
                                         .symbolRenderingMode(.multicolor)
                                         .font(.system(size: 20))
-                                        .frame(height: 22)
+                                        .frame(height: 21)
                                         .accessibilityLabel(WeatherStore.condition(hour.code))
 
                                     Text("\(hour.temperature, specifier: "%.0f")°")

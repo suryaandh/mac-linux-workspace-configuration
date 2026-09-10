@@ -62,6 +62,7 @@ struct SettingsPanelView: View {
                     GroupBox("Notifications") {
                         VStack(alignment: .leading, spacing: 9) {
                             Toggle("Capture visible app notifications", isOn: $notifications.captureEnabled)
+                            Toggle("Dismiss native banner after capture", isOn: $notifications.dismissNativeBanners)
                             Text(notifications.captureStatus).font(.callout)
                             Text(notifications.diagnostics).font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
                             HStack {
@@ -69,7 +70,7 @@ struct SettingsPanelView: View {
                                 Button("Open permission settings") { notifications.openPrivacy() }
                                 Button("Test preview") { notifications.add(message: "This is a DynamicNotch preview test.") }
                             }
-                            Text("Keep macOS banners enabled. Hidden previews and Focus-suppressed notifications cannot be read. Native banners are not replaced.").font(.caption).foregroundStyle(.secondary)
+                            Text("Keep macOS banners enabled. Hidden previews and Focus-suppressed notifications cannot be read. Native banners are dismissed only when macOS exposes a supported cancel action; a brief overlap may remain.").font(.caption).foregroundStyle(.secondary)
                         }.padding(8).frame(maxWidth: .infinity, alignment: .leading)
                     }
                     GroupBox("Clipboard & local data") {

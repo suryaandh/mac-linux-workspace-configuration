@@ -12,8 +12,12 @@ struct NotificationChecks {
         let id = store.items[0].id
         store.dismiss(id)
         precondition(store.items.count == 99 && !store.items.contains { $0.id == id })
+        precondition(store.preview == nil)
+        store.add(source: "Test", message: "Separate card")
+        store.dismissPreview()
+        precondition(store.preview == nil && store.items.count == 100)
         store.clear()
-        precondition(store.items.isEmpty)
+        precondition(store.items.isEmpty && store.preview == nil)
         print("Notification history checks passed")
     }
 }

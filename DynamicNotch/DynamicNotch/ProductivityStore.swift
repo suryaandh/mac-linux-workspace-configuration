@@ -6,6 +6,7 @@ struct TodoItem: Identifiable, Codable {
     var title: String
     var done = false
     var linkedTodoID: UUID?
+    var parentID: UUID?
 }
 struct Memo: Identifiable, Codable {
     var id = UUID()
@@ -49,11 +50,34 @@ final class ProductivityStore {
     private func save<T: Encodable>(_ value: T, key: String) {
         if let data = try? JSONEncoder().encode(value) { defaults.set(data, forKey: key) }
     }
-    func addTodo(_ title: String, focus: Bool = false) {
+    func addTodo(_ title: String, focus: Bool = false, parentID: UUID? = nil) {
         let text = title.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
         if focus { focusTasks.append(TodoItem(title: text)) }
-        else { todos.append(TodoItem(title: text)) }
+        else {
+            if let parentID { guard todos.contains(where: { $0.id == parentID && $0.parentID == nil && !$0.done }) else { return } }
+            todos.append(TodoItem(title: text, parentID: parentID))
+        }
+    }
+    func removeTodo(_ id: UUID) {
+        todos.removeAll { $0.id == id || $0.parentID == id }
+    }
+    func setDone(_ id: UUID, _ done: Bool) {
+        var updated = todos
+        for index in updated.indices where updated[index].id == id || updated[index].parentID == id {
+            updated[index].done = done
+        }
+        if !done, let parent = updated.first(where: { $0.id == id })?.parentID,
+           let index = updated.firstIndex(where: { $0.id == parent }) { updated[index].done = false }
+        todos = updated
+    }
+    func parentTitle(for todoID: UUID?) -> String? {
+        guard let id = todoID, let parent = todos.first(where: { $0.id == id })?.parentID else { return nil }
+        return todos.first(where: { $0.id == parent })?.title
+    }
+    func focusTitle(for task: TodoItem) -> String {
+        guard let parent = parentTitle(for: task.linkedTodoID) else { return task.title }
+        return "\(parent) › \(task.title)"
     }
     func focus(on todoID: UUID) {
         guard let todo = todos.first(where: { $0.id == todoID && !$0.done }) else { return }

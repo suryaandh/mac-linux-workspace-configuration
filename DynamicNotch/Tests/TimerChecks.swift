@@ -10,6 +10,13 @@ final class NotchState {
 struct TimerChecks {
     static func main() {
         let store = ActivityStore.shared
+        store.start(minutes: 0)
+        precondition(!store.running)
+        store.start(minutes: 241)
+        precondition(!store.running)
+        store.start(minutes: 37, task: "Parent › Child")
+        precondition(store.remaining == 2220 && store.focusTitle == "Parent › Child")
+        store.stop()
         store.start(minutes: 25)
         precondition(store.remaining == 1500 && store.running)
         let deadline = store.deadline!

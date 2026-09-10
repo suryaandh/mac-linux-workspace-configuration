@@ -29,6 +29,7 @@ final class ActivityStore {
     }
 
     func start(minutes: Int, task: String = "Focus", todoID: UUID? = nil) {
+        guard (1...240).contains(minutes) else { return }
         focusTitle = task
         focusTodoID = todoID
         total = Double(minutes * 60)
